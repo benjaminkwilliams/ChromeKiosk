@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
-using Newtonsoft.Json;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using System.Threading;
 
 namespace ChromeKiosk
 {
@@ -28,6 +28,49 @@ namespace ChromeKiosk
                 _Settings = ParseSettings(opt.CKSettingsPath);
             }
 
+            Console.WriteLine("Starting Chrome" + Environment.NewLine + 
+                              "Using:");
+            foreach (string i in _Settings.ChromeOptions)
+            {
+                Console.WriteLine(i);
+            }
+            Console.WriteLine("Press \"CTRL+C\" to Exit");
+
+            ChromeOptions chromeOptions = new ChromeOptions();
+            chromeOptions.AddArguments(_Settings.ChromeOptions.ToArray());
+            IWebDriver _driver = new ChromeDriver(chromeOptions);
+
+            try
+            {
+                while (true)
+                {
+                    foreach (var s in _Settings.SiteSettings)
+                    {
+                        // DEBUG
+                        //Console.WriteLine("URL:\t" + s.Uri + (s?.UriSettings ?? ""));
+                        if (String.IsNullOrEmpty(s.Uri + (s?.UriSettings ?? "")))
+                            continue; // Skip empty URLs
+
+                        _driver.Navigate().GoToUrl(s.Uri + (s?.UriSettings ?? "")); // Concat API flags if present
+                        Thread.Sleep(new TimeSpan(hours: 0, minutes: (int)s.TimeoutMinutes, seconds: (int)s.TimeoutSeconds)); // Wait for load
+                        Thread.Sleep(new TimeSpan(hours: 0, minutes: (int)s.ViewTimeMinutes, seconds: (int)s.ViewTimeSeconds)); // Pause to show site
+                    }
+                    // Reload from file after each cycle
+                    _Settings = ParseSettings(opt.CKSettingsPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error with Chrome:\t" + ex.Message);
+            }
+            finally
+            {
+                // Required to close out Chrome correctly
+                _driver.Quit();
+            }
+
+            Console.WriteLine("Program Done; press ENTER");
+            Console.ReadLine();
         }
 
         /// <summary>
@@ -78,7 +121,7 @@ namespace ChromeKiosk
                     else if (s.Substring(0, 3) == "-d:" && s.Length > 4)
                     {
                         _return.CreateDemo = true;
-                        _return.CKSettingsPath = s.Substring(3, s.Length - 3).Replace("\"", "").Replace("'", ""); ;
+                        _return.CKSettingsPath = s.Substring(3, s.Length - 3).Replace("\"", "").Replace("'", "");
                     }
                     else
                     {
@@ -126,12 +169,6 @@ namespace ChromeKiosk
                 },
                 SiteSettings = new List<SiteSettings>()
             };
-
-            demo.SiteSettings.Add(new SiteSettings {
-                Uri = "",
-                TimeoutMinutes = 1,
-                ViewTimeMinutes = 1
-            });
             demo.SiteSettings.Add(new SiteSettings
             {
                 Uri = "https://devrant.com/feed",
@@ -140,7 +177,7 @@ namespace ChromeKiosk
             });
             demo.SiteSettings.Add(new SiteSettings
             {
-                Uri = "https://public.tableau.com/profile/al.melchior6300#!/vizhome/ALSPTiers/Tier4",
+                Uri = "https://public.tableau.com/profile/john.iwanski#!/vizhome/RivalsWorkbook/Dashboard1",
                 UriSettings = "?:embed=yes&:refresh=yes&:toolbar=no", // This is ignored on Tableau Public but works on internal sites
                 TimeoutMinutes = 1,
                 ViewTimeMinutes = 1
@@ -148,6 +185,7 @@ namespace ChromeKiosk
             demo.SiteSettings.Add(new SiteSettings
             {
                 Uri = "https://public.tableau.com/profile/jodugg3205#!/vizhome/VideoGamesSales/SalesDashboard",
+                UriSettings = "?:embed=yes&:refresh=yes&:toolbar=no",
                 TimeoutMinutes = 1,
                 ViewTimeMinutes = 1
             });
