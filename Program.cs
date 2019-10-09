@@ -38,6 +38,9 @@ namespace ChromeKiosk
 
             ChromeOptions chromeOptions = new ChromeOptions();
             chromeOptions.AddArguments(_Settings.ChromeOptions.ToArray());
+            // Force add these to remove the automation toolbar in Chrome 77+
+            chromeOptions.AddExcludedArgument("enable-automation");
+            chromeOptions.AddAdditionalCapability("useAutomationExtension", false);
             IWebDriver _driver = new ChromeDriver(chromeOptions);
 
             try
